@@ -5,7 +5,7 @@ Roony tool for firebase
 ```
 git clone https://github.com/robot-ronny/rr-firebase.git
 
-cd rr-control
+cd rr-firebase
 
 sudo pip3 install -e .
 ```

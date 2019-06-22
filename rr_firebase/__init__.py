@@ -70,7 +70,7 @@ def cli(firebase_url, credentials_file, mqtt_host, mqtt_port, username, password
             db.update({"sensors/ronny/" + quantitie: payload})
 
         elif msg.topic == "ronny/camera/object-detected":
-            db.update({"camera/object_detected": payload})
+            db.update({"camera": {"object_detected": payload}})
 
         elif msg.topic == "ronny/camera/foto":
             logging.debug('aaaa')
@@ -97,32 +97,30 @@ def cli(firebase_url, credentials_file, mqtt_host, mqtt_port, username, password
         '/commands/go/direction': 'forward',
     }
 
+    def getPayload(path, data):
+        response = {}
+        if isinstance(data, dict):
+            for k in data:
+                response.update(getPayload(path + '/' + k if path[-1] != '/' else path + k, data[k]))
+        else:
+            response[path] = data
+        return response
+
     def callback(msg):
         logging.debug("fb: %s %s", msg.path, msg.data)
 
-        if msg.path == '/':
-            cache['/commands/go/value'] = msg.data['commands']['go']['value']
-            cache['/commands/go/direction'] = msg.data['commands']['go']['direction']
+        payload = getPayload(msg.path, msg.data)
 
-        if msg.path == "/commands/go/value":
-            cache['/commands/go/value'] = msg.data
-
-        elif msg.path == "/commands/go/direction":
-            cache['/commands/go/direction'] = msg.data
-
-        elif msg.path == "/commands/go":
-           cache['/commands/go/value'] = msg.data['value']
-           cache['/commands/go/direction'] = msg.data['direction']
-
-        elif msg.path == '/gesture/name':
-            client.publish("ronny/gesture", cache['/gesture/name'])
+        cache.update(payload)
 
         logging.debug("cache: %s", cache)
 
         if msg.path.startswith("/commands/go"):
             payload = {'interval': cache['/commands/go/value'], 'speed': 100}
-            client.publish("ronny/go/" + cache['/commands/go/direction'], json.dumps(payload))
+            mqttc.publish("ronny/go/" + cache['/commands/go/direction'], json.dumps(payload))
 
+        elif msg.path == '/gesture/name':
+            mqttc.publish("ronny/gesture", cache['/gesture/name'])
 
     db.listen(callback)
 
